@@ -374,6 +374,7 @@ def seed(legs):
             track(key)
         notes.append(summary)
     bevo.state["seeded"] = True
+    bevo.status("seeded")
     bevo.notify(("%s: starting basket (%s): %s" % (NAME, usd(SEED_USD), "; ".join(notes)))[:500])
 
 
@@ -412,11 +413,14 @@ def rebalance(legs, book, slot):
     if moves is None:
         if total < MIN_TRADE_USD * 2:
             say("%s: the index holds %s, too little to rebalance" % (slot, usd(total)))
+            bevo.status("small")
         else:
             say("%s: max drift %.1f pts, inside the %s-pt band" % (slot, drift, fmt(BAND_PCT)))
+            bevo.status("balanced", drift=round(drift, 1))
         return
     if not moves["sells"]:
         say("%s: drift %.1f pts but no leg is far enough over to sell" % (slot, drift))
+        bevo.status("balanced", drift=round(drift, 1))
         return
 
     notes = ["drift %.1f pts on %s" % (drift, usd(total))]
@@ -450,6 +454,10 @@ def rebalance(legs, book, slot):
     elif buys:
         bevo.state["queued"] = {"slot": slot, "buys": buys}
         notes.append("buys queued until the sells settle")
+    if bevo.state.get("queued"):
+        bevo.status("queued")
+    else:
+        bevo.status("rebalanced")
     bevo.notify(("%s: rebalanced. %s" % (NAME, "; ".join(notes)))[:500])
 
 
@@ -457,9 +465,11 @@ def fire(legs, tick):
     slot = tick.slot
     if slot is None:
         say("skipped: the fire carried no time, so there is no slot to key on")
+        bevo.status("skipped")
         return
     if still_pending():
         say("%s: waiting on %d trade(s) still in flight" % (slot, len(bevo.state.get("pending") or {})))
+        bevo.status("settling")
         return
 
     queued = bevo.state.get("queued")
@@ -467,6 +477,7 @@ def fire(legs, tick):
         notes = []
         file_buys(legs, [tuple(b) for b in queued.get("buys") or []], queued.get("slot") or slot, notes)
         bevo.state.pop("queued", None)
+        bevo.status("rebalanced")
         bevo.notify(("%s: sells settled, buys filed: %s" % (NAME, "; ".join(notes)))[:500], quiet=True)
         return
 
@@ -477,6 +488,7 @@ def fire(legs, tick):
     book, why = read_book(legs)
     if book is None:
         say("%s: skipped, %s" % (slot, why))
+        bevo.status("skipped")
         return
     rebalance(legs, book, slot)
 
@@ -484,9 +496,12 @@ def fire(legs, tick):
 LEGS, PROBLEM = parse_legs(LEGS_RAW)
 if PROBLEM:
     bevo.notify("%s does nothing until its basket is fixed: %s." % (NAME, PROBLEM))
+    bevo.status("paused")
 
+# The owner's Duties row: recipe.json `status` words each state.
 for tick in bevo.ticks():
     if PROBLEM:
         say("skipped: %s" % PROBLEM)
+        bevo.status("paused")
         continue
     fire(LEGS, tick)

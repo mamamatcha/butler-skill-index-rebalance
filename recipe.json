@@ -1,9 +1,19 @@
 {
   "id": "index-rebalance",
-  "version": 1,
+  "version": 2,
   "description": "Hold a basket of tokens at target weights: sell what has run ahead into USDC and buy what has lagged whenever any leg drifts out of band.",
-  "keywords": ["index", "basket", "rebalance", "weights", "portfolio", "equal weight", "drift"],
-  "triggers": ["timer"],
+  "keywords": [
+    "index",
+    "basket",
+    "rebalance",
+    "weights",
+    "portfolio",
+    "equal weight",
+    "drift"
+  ],
+  "triggers": [
+    "timer"
+  ],
   "keys": [
     "index:<duty>:seed:<leg>",
     "index:<duty>:<slot>:sell:<leg>",
@@ -12,7 +22,9 @@
   "params": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["LEGS"],
+    "required": [
+      "LEGS"
+    ],
     "properties": {
       "LEGS": {
         "type": "array",
@@ -20,7 +32,11 @@
         "items": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["SYMBOL", "CHAIN_ID", "WEIGHT"],
+          "required": [
+            "SYMBOL",
+            "CHAIN_ID",
+            "WEIGHT"
+          ],
           "properties": {
             "SYMBOL": {
               "type": "string",
@@ -75,5 +91,25 @@
         "description": "USD ceiling on what one rebalance sells. The buys are funded only by those sells, so this caps the whole correction."
       }
     }
+  },
+  "supersedes": [
+    "index-rebalance@1"
+  ],
+  "status": {
+    "starting": "First check {next}",
+    "seeded": {
+      "last": "Starting basket bought",
+      "next": "next check {next}"
+    },
+    "balanced": "On target, drift {drift}% · next check {next}",
+    "rebalanced": {
+      "last": "Rebalanced",
+      "next": "next check {next}"
+    },
+    "queued": "Buys wait on sells · next check {next}",
+    "settling": "Trades settling · next check {next}",
+    "small": "Too little to rebalance · next check {next}",
+    "skipped": "Last check skipped · next check {next}",
+    "paused": "Paused: the basket needs fixing"
   }
 }
